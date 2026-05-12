@@ -1,4 +1,3 @@
-import { storage } from "@/src/services/storage";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -12,6 +11,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { storage } from "../../services/storage";
 
 const LoginScreen = () => {
   const router = useRouter();

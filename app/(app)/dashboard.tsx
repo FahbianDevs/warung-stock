@@ -1,7 +1,7 @@
-import { storage } from "@/src/services/storage";
 import { useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { storage } from "../../src/services/storage";
 
 export default function DashboardScreen() {
   const router = useRouter();

@@ -59,7 +59,43 @@ const webStorage: StorageService = {
   },
 };
 
-// Wrapper untuk AsyncStorage dengan error handling
+// Fallback memory-only storage untuk ketika AsyncStorage tidak available
+const memoryOnlyStorage: StorageService = {
+  getItem: async (key: string) => {
+    try {
+      if (memoryCache.has(key)) {
+        return memoryCache.get(key) ?? null;
+      }
+      return null;
+    } catch (e) {
+      console.error("Memory storage getItem error:", e);
+      return null;
+    }
+  },
+  setItem: async (key: string, value: string) => {
+    try {
+      memoryCache.set(key, value);
+    } catch (e) {
+      console.error("Memory storage setItem error:", e);
+    }
+  },
+  removeItem: async (key: string) => {
+    try {
+      memoryCache.set(key, null);
+    } catch (e) {
+      console.error("Memory storage removeItem error:", e);
+    }
+  },
+  clear: async () => {
+    try {
+      memoryCache.clear();
+    } catch (e) {
+      console.error("Memory storage clear error:", e);
+    }
+  },
+};
+
+// Wrapper untuk AsyncStorage dengan error handling dan retry logic
 const nativeStorage: StorageService = {
   getItem: async (key: string) => {
     try {
@@ -67,36 +103,76 @@ const nativeStorage: StorageService = {
       if (memoryCache.has(key)) {
         return memoryCache.get(key) ?? null;
       }
-      const value = await AsyncStorage.getItem(key);
-      memoryCache.set(key, value);
+
+      // Try with timeout for native initialization
+      const timeoutPromise = new Promise<string | null>((resolve) => {
+        setTimeout(() => {
+          console.warn(
+            "AsyncStorage access timeout - falling back to memory cache",
+          );
+          resolve(null);
+        }, 3000);
+      });
+
+      const storagePromise = AsyncStorage.getItem(key);
+      const value = await Promise.race([storagePromise, timeoutPromise]);
+
+      if (value !== null) {
+        memoryCache.set(key, value);
+      }
       return value;
     } catch (e) {
-      console.error("Native storage getItem error:", e);
-      return null;
+      console.warn(
+        "Native storage getItem error - falling back to memory cache:",
+        e,
+      );
+      // Return dari memory cache jika ada, atau null
+      return memoryCache.get(key) ?? null;
     }
   },
   setItem: async (key: string, value: string) => {
     try {
-      await AsyncStorage.setItem(key, value);
       memoryCache.set(key, value);
+      // Try to save to AsyncStorage, but don't fail if it doesn't work
+      try {
+        await AsyncStorage.setItem(key, value);
+      } catch (asyncErr) {
+        console.warn(
+          "AsyncStorage setItem failed, using memory cache only:",
+          asyncErr,
+        );
+      }
     } catch (e) {
       console.error("Native storage setItem error:", e);
+      memoryCache.set(key, value);
     }
   },
   removeItem: async (key: string) => {
     try {
-      await AsyncStorage.removeItem(key);
       memoryCache.set(key, null);
+      // Try to remove from AsyncStorage, but don't fail if it doesn't work
+      try {
+        await AsyncStorage.removeItem(key);
+      } catch (asyncErr) {
+        console.warn("AsyncStorage removeItem failed:", asyncErr);
+      }
     } catch (e) {
       console.error("Native storage removeItem error:", e);
+      memoryCache.set(key, null);
     }
   },
   clear: async () => {
     try {
-      await AsyncStorage.clear();
       memoryCache.clear();
+      // Try to clear AsyncStorage, but don't fail if it doesn't work
+      try {
+        await AsyncStorage.clear();
+      } catch (asyncErr) {
+        console.warn("AsyncStorage clear failed:", asyncErr);
+      }
     } catch (e) {
       console.error("Native storage clear error:", e);
+      memoryCache.clear();
     }
   },
 };

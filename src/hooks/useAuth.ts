@@ -1,5 +1,5 @@
-import { storage } from "@/src/services/storage";
 import { useEffect, useState } from "react";
+import { storage } from "../services/storage";
 
 export const useAuth = () => {
   const [authState, setAuthState] = useState({
@@ -12,23 +12,37 @@ export const useAuth = () => {
     // Check if user is already logged in
     const bootstrapAsync = async () => {
       try {
-        // Tambah timeout 5 detik untuk mencegah loading infinite
+        // Timeout 3 detik untuk storage check - lebih cepat
         const timeoutPromise = new Promise<null>((resolve) => {
           setTimeout(() => {
-            console.warn(
-              "Storage access timeout - defaulting to not signed in",
-            );
+            console.warn("Auth bootstrap timeout - proceeding without token");
             resolve(null);
-          }, 5000);
+          }, 3000);
         });
 
         const storagePromise = storage.getItem("userToken");
         const token = await Promise.race([storagePromise, timeoutPromise]);
 
-        setAuthState({
-          isSignedIn: !!token,
-          user: token ? JSON.parse(token) : null,
-        });
+        if (token) {
+          try {
+            const user = JSON.parse(token);
+            setAuthState({
+              isSignedIn: true,
+              user,
+            });
+          } catch (parseErr) {
+            console.warn("Failed to parse token:", parseErr);
+            setAuthState({
+              isSignedIn: false,
+              user: null,
+            });
+          }
+        } else {
+          setAuthState({
+            isSignedIn: false,
+            user: null,
+          });
+        }
       } catch (e) {
         console.error("Auth bootstrap error:", e);
         setAuthState({
