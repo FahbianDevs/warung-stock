@@ -1,3 +1,4 @@
+import { storage } from "@/src/services/storage";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -16,10 +17,33 @@ const LoginScreen = () => {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
-    // TODO: Implement login logic
-    console.log("Login dengan email:", email);
+  const handleLogin = async () => {
+    if (!email || !password) {
+      alert("Email dan password harus diisi!");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // TODO: Ganti dengan API call yang sesungguhnya
+      // Untuk saat ini, simpan token dummy
+      const token = JSON.stringify({
+        email,
+        timestamp: new Date().toISOString(),
+      });
+
+      await storage.setItem("userToken", token);
+
+      // Navigate ke dashboard
+      router.replace("/(app)/dashboard");
+    } catch (e) {
+      console.error("Login error:", e);
+      alert("Login gagal. Silakan coba lagi.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleRegister = () => {
@@ -67,8 +91,14 @@ const LoginScreen = () => {
           />
 
           {/* Login Button */}
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>Login</Text>
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            <Text style={styles.loginButtonText}>
+              {isLoading ? "Loading..." : "Login"}
+            </Text>
           </TouchableOpacity>
 
           {/* Register Link */}

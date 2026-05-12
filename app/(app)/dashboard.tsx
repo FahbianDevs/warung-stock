@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { storage } from "@/src/services/storage";
 import { useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -7,8 +7,12 @@ export default function DashboardScreen() {
   const router = useRouter();
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem("userToken");
-    router.replace("/(auth)/login");
+    try {
+      await storage.removeItem("userToken");
+      router.replace("/(auth)/login");
+    } catch (e) {
+      console.error("Logout error:", e);
+    }
   };
 
   return (
