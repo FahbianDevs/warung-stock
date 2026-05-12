@@ -12,7 +12,19 @@ export const useAuth = () => {
     // Check if user is already logged in
     const bootstrapAsync = async () => {
       try {
-        const token = await storage.getItem("userToken");
+        // Tambah timeout 5 detik untuk mencegah loading infinite
+        const timeoutPromise = new Promise<null>((resolve) => {
+          setTimeout(() => {
+            console.warn(
+              "Storage access timeout - defaulting to not signed in",
+            );
+            resolve(null);
+          }, 5000);
+        });
+
+        const storagePromise = storage.getItem("userToken");
+        const token = await Promise.race([storagePromise, timeoutPromise]);
+
         setAuthState({
           isSignedIn: !!token,
           user: token ? JSON.parse(token) : null,

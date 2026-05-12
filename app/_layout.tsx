@@ -1,6 +1,7 @@
 import { useAuth } from "@/src/hooks/useAuth";
 import { Stack, useRouter } from "expo-router";
 import { useEffect } from "react";
+import { ActivityIndicator, View } from "react-native";
 
 export default function RootLayout() {
   const { authState, isLoading } = useAuth();
@@ -17,6 +18,21 @@ export default function RootLayout() {
       router.replace("/(app)/dashboard");
     }
   }, [authState?.isSignedIn, isLoading]);
+
+  if (isLoading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#23050C",
+        }}
+      >
+        <ActivityIndicator size="large" color="#D71920" />
+      </View>
+    );
+  }
 
   return <Stack />;
 }
