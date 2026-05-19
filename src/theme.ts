@@ -4,6 +4,7 @@ export const COLORS = {
   primary: "#330814", // Marun gelap (Sidebar/Tombol)
   textDark: "#853641", // Judul marun
   textLight: "#FFFFFF", // Putih
+  white: "#FFFFFF",
   cardBg: "#FFFFFF", // Latar belakang kartu
   inputBg: "#FCF5EE", // Latar input form
   border: "#EAE0D5", // Garis tepi input

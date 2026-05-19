@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
-import { storage } from "../../services/storage";
 import { COLORS } from "../../theme";
 
 interface MenuItem {
@@ -20,13 +19,10 @@ export default function CustomDrawer(props: CustomDrawerProps) {
   const router = useRouter();
 
   const menuItems: MenuItem[] = [
-    { name: "Home", icon: "home-outline", route: "dashboard" },
-    { name: "Warehouse", icon: "business-outline", route: "warehouse" },
-    { name: "Products", icon: "cube-outline", route: "products" },
-    { name: "Care Guides", icon: "medical", route: "careGuides" },
-    { name: "Orders", icon: "cart-outline" },
-    { name: "Configuration", icon: "settings-outline" },
-    { name: "Profile", icon: "person-outline" },
+    { name: "Dashboard", icon: "home-outline", route: "dashboard" },
+    { name: "Tambah Barang", icon: "add-circle-outline", route: "add-item" },
+    { name: "Riwayat", icon: "time-outline", route: "history" },
+    { name: "Pengaturan", icon: "settings-outline", route: "settings" },
   ];
 
   const handleMenuPress = (menuName: string, route?: string) => {
@@ -43,8 +39,7 @@ export default function CustomDrawer(props: CustomDrawerProps) {
 
   const handleLogout = async () => {
     try {
-      await storage.removeItem("userToken");
-      router.replace("/(auth)/login");
+      router.replace("/(auth)/logout");
     } catch (e) {
       console.error("Logout error:", e);
     }
@@ -54,8 +49,8 @@ export default function CustomDrawer(props: CustomDrawerProps) {
     <View style={{ flex: 1, backgroundColor: COLORS.primary }}>
       <DrawerContentScrollView {...props}>
         <View style={styles.header}>
-          <Text style={styles.logoText}>StockSip</Text>
-          <Text style={styles.userText}>Inventory Manager</Text>
+          <Text style={styles.logoText}>WARUNG-STOCK</Text>
+          <Text style={styles.userText}>Smart Inventory Management</Text>
         </View>
         <View style={styles.menuContainer}>
           {menuItems.map((item, index) => (

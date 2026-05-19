@@ -1,8 +1,9 @@
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+    ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
-    SafeAreaView,
     StatusBar,
     StyleSheet,
     Text,
@@ -10,9 +11,65 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { register } from "@/src/services/auth/authApi";
 
 const RegisterScreen = () => {
+  const router = useRouter();
   const [role, setRole] = useState("owner"); // 'owner' | 'supplier'
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
+
+  const validate = () => {
+    const nextErrors: typeof fieldErrors = {};
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) nextErrors.name = "Nama tidak boleh kosong.";
+    if (!trimmedEmail) nextErrors.email = "Email tidak boleh kosong.";
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      nextErrors.email = "Format email tidak valid.";
+    }
+    if (!password) nextErrors.password = "Password tidak boleh kosong.";
+    if (!confirmPassword) nextErrors.confirmPassword = "Konfirmasi password wajib diisi.";
+    if (password && confirmPassword && password !== confirmPassword) {
+      nextErrors.confirmPassword = "Konfirmasi password tidak sama.";
+    }
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleRegister = async () => {
+    setErrorMessage(null);
+    if (!validate()) return;
+
+    setIsLoading(true);
+    try {
+      await register({
+        identifier: email.trim(),
+        password,
+        name: name.trim(),
+        role,
+      });
+      router.replace("/(auth)/login");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Registrasi gagal.";
+      setErrorMessage(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -27,13 +84,13 @@ const RegisterScreen = () => {
       >
         {/* Header / Logo */}
         <View style={styles.header}>
-          <Text style={styles.logoRed}>Stock</Text>
-          <Text style={styles.logoWhite}>Sip</Text>
+          <Text style={styles.logoRed}>WARUNG</Text>
+          <Text style={styles.logoWhite}>-STOCK</Text>
         </View>
 
         {/* Role Selection */}
         <View style={styles.roleContainer}>
-          <Text style={styles.roleLabel}>Choose your role *</Text>
+          <Text style={styles.roleLabel}>Pilih peran *</Text>
           <View style={styles.roleButtonsRow}>
             <TouchableOpacity
               style={[
@@ -42,7 +99,7 @@ const RegisterScreen = () => {
               ]}
               onPress={() => setRole("owner")}
             >
-              <Text style={styles.roleButtonText}>Liquor Store{"\n"}Owner</Text>
+              <Text style={styles.roleButtonText}>Pemilik{"\n"}Warung</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -61,32 +118,77 @@ const RegisterScreen = () => {
         <View style={styles.formContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Usuario"
+            placeholder="Nama"
             placeholderTextColor="#333"
+            value={name}
+            onChangeText={(v) => {
+              setName(v);
+              if (fieldErrors.name) setFieldErrors((p) => ({ ...p, name: undefined }));
+            }}
           />
+          {!!fieldErrors.name && <Text style={styles.fieldError}>{fieldErrors.name}</Text>}
           <TextInput
             style={styles.input}
-            placeholder="usuario@example.com"
+            placeholder="Email"
             placeholderTextColor="#333"
             keyboardType="email-address"
             autoCapitalize="none"
+            value={email}
+            onChangeText={(v) => {
+              setEmail(v);
+              if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: undefined }));
+            }}
           />
+          {!!fieldErrors.email && <Text style={styles.fieldError}>{fieldErrors.email}</Text>}
           <TextInput
             style={styles.input}
-            placeholder="••••••••••••"
+            placeholder="Password"
             placeholderTextColor="#000"
             secureTextEntry
+            value={password}
+            onChangeText={(v) => {
+              setPassword(v);
+              if (fieldErrors.password) {
+                setFieldErrors((p) => ({ ...p, password: undefined }));
+              }
+            }}
           />
+          {!!fieldErrors.password && (
+            <Text style={styles.fieldError}>{fieldErrors.password}</Text>
+          )}
           <TextInput
             style={styles.input}
-            placeholder="••••••••••••"
+            placeholder="Konfirmasi password"
             placeholderTextColor="#000"
             secureTextEntry
+            value={confirmPassword}
+            onChangeText={(v) => {
+              setConfirmPassword(v);
+              if (fieldErrors.confirmPassword) {
+                setFieldErrors((p) => ({ ...p, confirmPassword: undefined }));
+              }
+            }}
           />
+          {!!fieldErrors.confirmPassword && (
+            <Text style={styles.fieldError}>{fieldErrors.confirmPassword}</Text>
+          )}
+
+          {!!errorMessage && <Text style={styles.formError}>{errorMessage}</Text>}
 
           {/* Sign Up Button */}
-          <TouchableOpacity style={styles.signUpButton}>
-            <Text style={styles.signUpButtonText}>Sign Up</Text>
+          <TouchableOpacity
+            style={styles.signUpButton}
+            onPress={handleRegister}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator size="small" color="#FFFFFF" />
+                <Text style={styles.signUpButtonText}>Memproses...</Text>
+              </View>
+            ) : (
+              <Text style={styles.signUpButtonText}>Daftar</Text>
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -167,7 +269,7 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     paddingHorizontal: 20,
-    marginBottom: 15,
+    marginBottom: 8,
     fontSize: 14,
     color: "#000",
     // Shadow untuk iOS
@@ -177,6 +279,21 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     // Elevation untuk Android
     elevation: 3,
+  },
+  fieldError: {
+    width: "100%",
+    color: "#D71920",
+    fontSize: 12,
+    marginBottom: 10,
+    paddingHorizontal: 10,
+  },
+  formError: {
+    width: "100%",
+    color: "#D71920",
+    fontSize: 13,
+    marginBottom: 10,
+    paddingHorizontal: 10,
+    textAlign: "center",
   },
   signUpButton: {
     backgroundColor: "#23050C",
@@ -197,6 +314,12 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "bold",
+    marginLeft: 8,
+  },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 

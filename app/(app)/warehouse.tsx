@@ -8,7 +8,7 @@ type DrawerNavigation = DrawerNavigationProp<any>;
 
 export default function WarehouseScreen() {
   const navigation = useNavigation<DrawerNavigation>();
-  const dimensions = useWindowDimensions();
+  useWindowDimensions();
 
   useEffect(() => {
     navigation.setOptions({

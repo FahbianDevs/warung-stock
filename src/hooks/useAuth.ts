@@ -1,60 +1,64 @@
 import { useEffect, useState } from "react";
-import { storage } from "../services/storage";
+import { me } from "@/src/services/auth/authApi";
+import { getSession, subscribeSession, type AuthUser } from "@/src/services/auth/session";
+
+type AuthState = {
+  isSignedIn: boolean;
+  user: AuthUser | null;
+  token: string | null;
+};
 
 export const useAuth = () => {
-  const [authState, setAuthState] = useState({
+  const [authState, setAuthState] = useState<AuthState>({
     isSignedIn: false,
     user: null,
+    token: null,
   });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const bootstrapAsync = async () => {
+    let cancelled = false;
+
+    const bootstrap = async () => {
       try {
-        // Timeout 3 detik untuk storage check - lebih cepat
-        const timeoutPromise = new Promise<null>((resolve) => {
-          setTimeout(() => {
-            console.warn("Auth bootstrap timeout - proceeding without token");
-            resolve(null);
-          }, 3000);
-        });
-
-        const storagePromise = storage.getItem("userToken");
-        const token = await Promise.race([storagePromise, timeoutPromise]);
-
-        if (token) {
-          try {
-            const user = JSON.parse(token);
-            setAuthState({
-              isSignedIn: true,
-              user,
-            });
-          } catch (parseErr) {
-            console.warn("Failed to parse token:", parseErr);
-            setAuthState({
-              isSignedIn: false,
-              user: null,
-            });
+        const session = await getSession();
+        if (!session) {
+          if (!cancelled) {
+            setAuthState({ isSignedIn: false, user: null, token: null });
           }
-        } else {
-          setAuthState({
-            isSignedIn: false,
-            user: null,
-          });
+          return;
         }
-      } catch (e) {
-        console.error("Auth bootstrap error:", e);
-        setAuthState({
-          isSignedIn: false,
-          user: null,
-        });
+
+        // Optimistic: session exists => signed in; validate token if possible.
+        if (!cancelled) {
+          setAuthState({ isSignedIn: true, user: session.user, token: session.token });
+        }
+
+        const validatedUser = await me(session.token);
+        if (!cancelled && validatedUser) {
+          setAuthState({ isSignedIn: true, user: validatedUser, token: session.token });
+        }
+      } catch {
+        if (!cancelled) {
+          setAuthState({ isSignedIn: false, user: null, token: null });
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
-    bootstrapAsync();
+    const unsubscribe = subscribeSession(() => {
+      // Re-bootstrap when session changes (login/logout).
+      setIsLoading(true);
+      bootstrap();
+    });
+
+    bootstrap();
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   return { authState, isLoading };

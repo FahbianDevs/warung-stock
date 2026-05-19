@@ -1,8 +1,5 @@
 import { CustomDrawer } from "@/src/screens/components";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Drawer } from "expo-router/drawer";
-
-const Stack = createNativeStackNavigator();
 
 export default function AppLayout() {
   return (
@@ -20,21 +17,21 @@ export default function AppLayout() {
         }}
       />
       <Drawer.Screen
-        name="warehouse"
+        name="add-item"
         options={{
-          title: "Warehouse",
+          title: "Tambah Barang",
         }}
       />
       <Drawer.Screen
-        name="products"
+        name="history"
         options={{
-          title: "Products",
+          title: "Riwayat Masuk/Keluar",
         }}
       />
       <Drawer.Screen
-        name="careGuides"
+        name="settings"
         options={{
-          title: "Care Guides",
+          title: "Pengaturan",
         }}
       />
     </Drawer>

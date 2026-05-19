@@ -2,6 +2,7 @@ import { useAuth } from "@/src/hooks/useAuth";
 import { Stack, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function RootLayout() {
   const { authState, isLoading } = useAuth();
@@ -17,7 +18,7 @@ export default function RootLayout() {
       // Jika sudah login, redirect ke (app) group
       router.replace("/(app)/dashboard");
     }
-  }, [authState?.isSignedIn, isLoading]);
+  }, [authState?.isSignedIn, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -34,5 +35,9 @@ export default function RootLayout() {
     );
   }
 
-  return <Stack />;
+  return (
+    <SafeAreaProvider>
+      <Stack />
+    </SafeAreaProvider>
+  );
 }
