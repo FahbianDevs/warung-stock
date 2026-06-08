@@ -1,4 +1,13 @@
-import { addMovement, daysUntil, deleteItem, getItemById, listMovements, MovementType } from "@/src/services/inventory";
+import {
+  addMovement,
+  daysUntil,
+  deleteItem,
+  getExpiryStatus,
+  getItemById,
+  getStockStatus,
+  listMovements,
+  MovementType,
+} from "@/src/services/inventory";
 import { COLORS } from "@/src/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
@@ -27,7 +36,6 @@ export default function ItemDetailScreen() {
   const [item, setItem] = React.useState<Awaited<ReturnType<typeof getItemById>>>(null);
   const [rows, setRows] = React.useState<(Awaited<ReturnType<typeof listMovements>>)[number][]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-
   const [type, setType] = React.useState<MovementType>("OUT");
   const [qty, setQty] = React.useState("1");
   const [note, setNote] = React.useState("");
@@ -36,10 +44,9 @@ export default function ItemDetailScreen() {
     if (!Number.isFinite(itemId)) return;
     setIsLoading(true);
     try {
-      const it = await getItemById(itemId);
-      setItem(it);
-      const mv = await listMovements({ itemId, limit: 100 });
-      setRows(mv);
+      const nextItem = await getItemById(itemId);
+      setItem(nextItem);
+      setRows(await listMovements({ itemId, limit: 100 }));
     } catch (e) {
       console.error(e);
       alert("Gagal memuat detail barang.");
@@ -52,30 +59,24 @@ export default function ItemDetailScreen() {
     void load();
   }, [load]);
 
-  const handleBack = () => router.back();
-
   const handleDelete = async () => {
     if (!item) return;
-    Alert.alert(
-      "Hapus Barang",
-      `Hapus "${item.name}"? Riwayat terkait juga akan terhapus.`,
-      [
-        { text: "Batal", style: "cancel" },
-        {
-          text: "Hapus",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteItem(item.id);
-              router.replace("/(app)/dashboard");
-            } catch (e) {
-              console.error(e);
-              alert("Gagal menghapus barang.");
-            }
-          },
+    Alert.alert("Hapus Barang", `Hapus "${item.name}"? Riwayat terkait juga akan terhapus.`, [
+      { text: "Batal", style: "cancel" },
+      {
+        text: "Hapus",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteItem(item.id);
+            router.replace("/(app)/dashboard");
+          } catch (e) {
+            console.error(e);
+            alert("Gagal menghapus barang.");
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const handleSubmitMovement = async () => {
@@ -93,23 +94,31 @@ export default function ItemDetailScreen() {
     }
   };
 
-  const lowStock = item ? item.quantity < item.minQuantity : false;
+  const stockStatus = item ? getStockStatus(item) : "AMAN";
+  const expiryStatus = item ? getExpiryStatus(item) : "AMAN";
   const expD = item?.expiryDate ? daysUntil(item.expiryDate) : null;
-  const isExpiring = expD !== null && expD <= 3;
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
           <Icon name="chevron-back" size={26} color={COLORS.textLight} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           Detail Barang
         </Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={handleDelete}>
-          <Icon name="trash" size={22} color={COLORS.textLight} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => item && router.push({ pathname: "/(app)/add-item" as any, params: { id: String(item.id) } } as any)}
+          >
+            <Icon name="create-outline" size={22} color={COLORS.textLight} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={handleDelete}>
+            <Icon name="trash" size={22} color={COLORS.textLight} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {!item ? (
@@ -124,17 +133,46 @@ export default function ItemDetailScreen() {
               {item.category ? `${item.category} • ` : ""}
               {item.quantity} {item.unit}
             </Text>
+            <Text style={styles.meta}>
+              Minimum: {item.minQuantity} {item.unit}
+            </Text>
+            {item.purchasePrice !== null ? (
+              <Text style={styles.meta}>
+                Harga beli: Rp {item.purchasePrice.toLocaleString("id-ID")} / {item.unit}
+              </Text>
+            ) : null}
+            {item.notes ? <Text style={styles.notes}>{item.notes}</Text> : null}
 
             <View style={styles.alertRow}>
-              {lowStock ? (
-                <View style={[styles.alertPill, { backgroundColor: "#C60000" }]}>
-                  <Text style={styles.alertText}>Stok di bawah minimum</Text>
+              {stockStatus === "STOK_RENDAH" ? (
+                <View style={[styles.alertPill, { backgroundColor: COLORS.danger }]}>
+                  <Text style={styles.alertText}>Stok Rendah</Text>
                 </View>
-              ) : null}
+              ) : stockStatus === "HAMPIR_HABIS" ? (
+                <View style={[styles.alertPill, { backgroundColor: COLORS.warning }]}>
+                  <Text style={styles.alertText}>Hampir Habis</Text>
+                </View>
+              ) : (
+                <View style={[styles.alertPill, { backgroundColor: COLORS.success }]}>
+                  <Text style={styles.alertText}>Aman</Text>
+                </View>
+              )}
               {item.expiryDate ? (
-                <View style={[styles.alertPill, { backgroundColor: isExpiring ? "#D97706" : "#6B7280" }]}>
+                <View
+                  style={[
+                    styles.alertPill,
+                    {
+                      backgroundColor:
+                        expiryStatus === "KEDALUWARSA"
+                          ? COLORS.danger
+                          : expiryStatus === "SEGERA_DIGUNAKAN"
+                            ? COLORS.warning
+                            : COLORS.textMuted,
+                    },
+                  ]}
+                >
                   <Text style={styles.alertText}>
-                    Exp: {item.expiryDate}
+                    {expiryStatus === "KEDALUWARSA" ? "Kedaluwarsa" : expiryStatus === "SEGERA_DIGUNAKAN" ? "Segera digunakan" : "Exp"}: {item.expiryDate}
                     {expD !== null ? ` (${expD} hari)` : ""}
                   </Text>
                 </View>
@@ -144,17 +182,16 @@ export default function ItemDetailScreen() {
 
           <View style={styles.formCard}>
             <Text style={styles.sectionTitle}>Catat Barang Masuk/Keluar</Text>
-
             <View style={styles.typeRow}>
-              {(["IN", "OUT"] as const).map((t) => (
+              {(["IN", "OUT"] as const).map((movementType) => (
                 <TouchableOpacity
-                  key={t}
-                  style={[styles.typeChip, type === t && styles.typeChipActive]}
-                  onPress={() => setType(t)}
+                  key={movementType}
+                  style={[styles.typeChip, type === movementType && styles.typeChipActive]}
+                  onPress={() => setType(movementType)}
                   activeOpacity={0.85}
                 >
-                  <Text style={[styles.typeText, type === t && styles.typeTextActive]}>
-                    {t === "IN" ? "Masuk" : "Keluar"}
+                  <Text style={[styles.typeText, type === movementType && styles.typeTextActive]}>
+                    {movementType === "IN" ? "Masuk" : "Keluar"}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -174,11 +211,11 @@ export default function ItemDetailScreen() {
               </View>
               <View style={{ width: 10 }} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Catatan (opsional)</Text>
+                <Text style={styles.label}>Catatan</Text>
                 <TextInput
                   value={note}
                   onChangeText={setNote}
-                  placeholder="Contoh: pemakaian harian"
+                  placeholder="Pembelian pasar"
                   placeholderTextColor={COLORS.grayText}
                   style={styles.input}
                 />
@@ -196,22 +233,22 @@ export default function ItemDetailScreen() {
 
           <FlatList
             data={rows}
-            keyExtractor={(it) => String(it.id)}
+            keyExtractor={(movement) => String(movement.id)}
             refreshing={isLoading}
             onRefresh={() => void load()}
             contentContainerStyle={styles.listContent}
-            renderItem={({ item: mv }) => {
-              const isIn = mv.type === "IN";
-              const color = isIn ? "#16A34A" : "#C60000";
+            renderItem={({ item: movement }) => {
+              const isIn = movement.type === "IN";
+              const color = isIn ? COLORS.success : COLORS.danger;
               return (
                 <View style={styles.mvRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.mvTitle}>
-                      {isIn ? "Masuk" : "Keluar"} • {mv.quantity} {mv.unit}
+                      {isIn ? "Masuk" : "Keluar"} • {movement.quantity} {movement.unit}
                     </Text>
                     <Text style={styles.mvSub}>
-                      {new Date(mv.createdAt).toLocaleString()}
-                      {mv.note ? ` • ${mv.note}` : ""}
+                      {new Date(movement.createdAt).toLocaleString()}
+                      {movement.note ? ` • ${movement.note}` : ""}
                     </Text>
                   </View>
                   <View style={[styles.dot, { backgroundColor: color }]} />
@@ -237,6 +274,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   iconBtn: { padding: 8 },
+  headerActions: { flexDirection: "row", alignItems: "center" },
   headerTitle: { flex: 1, textAlign: "center", fontSize: 18, fontWeight: "bold", color: COLORS.textLight },
   topCard: {
     margin: 16,
@@ -249,6 +287,7 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 18, fontWeight: "900", color: COLORS.textDark },
   meta: { marginTop: 6, color: COLORS.textMuted },
+  notes: { marginTop: 10, color: COLORS.textDark, lineHeight: 20 },
   alertRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
   alertPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   alertText: { color: "#fff", fontWeight: "800", fontSize: 12 },
@@ -272,7 +311,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     alignItems: "center",
   },
-  typeChipActive: { borderColor: COLORS.primary, backgroundColor: "#f7eef0" },
+  typeChipActive: { borderColor: COLORS.primary, backgroundColor: "#ECFDF5" },
   typeText: { fontSize: 12, fontWeight: "800", color: COLORS.textMuted },
   typeTextActive: { color: COLORS.primary },
   row: { flexDirection: "row", marginTop: 10 },

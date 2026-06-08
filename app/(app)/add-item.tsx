@@ -1,8 +1,8 @@
-import { createItem, parseYyyyMmDd } from "@/src/services/inventory";
+import { createItem, getItemById, parseYyyyMmDd, updateItem } from "@/src/services/inventory";
 import { COLORS } from "@/src/theme";
 import { DrawerNavigationProp } from "@react-navigation/drawer";
 import { useNavigation } from "@react-navigation/native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import {
   KeyboardAvoidingView,
@@ -27,15 +27,39 @@ function toNumber(value: string) {
 export default function AddItemScreen() {
   const navigation = useNavigation<DrawerNavigation>();
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const itemId = id ? Number(id) : null;
+  const isEdit = Number.isFinite(itemId);
   const [name, setName] = React.useState("");
   const [quantity, setQuantity] = React.useState("0");
   const [unit, setUnit] = React.useState("pcs");
   const [category, setCategory] = React.useState("");
   const [minQuantity, setMinQuantity] = React.useState("0");
   const [expiryDate, setExpiryDate] = React.useState(""); // YYYY-MM-DD
+  const [purchasePrice, setPurchasePrice] = React.useState("");
+  const [notes, setNotes] = React.useState("");
   const [isSaving, setIsSaving] = React.useState(false);
 
   const handleMenuOpen = () => navigation.openDrawer();
+
+  React.useEffect(() => {
+    if (!isEdit || !itemId) return;
+
+    const loadItem = async () => {
+      const item = await getItemById(itemId);
+      if (!item) return alert("Barang tidak ditemukan.");
+      setName(item.name);
+      setQuantity(String(item.quantity));
+      setUnit(item.unit);
+      setCategory(item.category);
+      setMinQuantity(String(item.minQuantity));
+      setExpiryDate(item.expiryDate ?? "");
+      setPurchasePrice(item.purchasePrice !== null ? String(item.purchasePrice) : "");
+      setNotes(item.notes);
+    };
+
+    void loadItem();
+  }, [isEdit, itemId]);
 
   const handleSave = async () => {
     const qty = toNumber(quantity);
@@ -45,6 +69,10 @@ export default function AddItemScreen() {
     if (!Number.isFinite(qty) || qty < 0) return alert("Jumlah harus angka >= 0.");
     if (!Number.isFinite(minQty) || minQty < 0) return alert("Batas minimum harus angka >= 0.");
     if (!unit.trim()) return alert("Satuan wajib diisi.");
+    const price = purchasePrice.trim() ? toNumber(purchasePrice) : null;
+    if (price !== null && (!Number.isFinite(price) || price < 0)) {
+      return alert("Harga beli harus angka >= 0.");
+    }
 
     let exp: string | null = null;
     if (expiryDate.trim()) {
@@ -55,15 +83,31 @@ export default function AddItemScreen() {
 
     setIsSaving(true);
     try {
-      await createItem({
-        name,
-        quantity: qty,
-        unit,
-        category,
-        minQuantity: minQty,
-        expiryDate: exp,
-      });
-      router.replace("/(app)/dashboard");
+      if (isEdit && itemId) {
+        await updateItem(itemId, {
+          name,
+          quantity: qty,
+          unit,
+          category,
+          minQuantity: minQty,
+          expiryDate: exp,
+          purchasePrice: price,
+          notes,
+        });
+        router.replace({ pathname: "/(app)/item/[id]" as any, params: { id: String(itemId) } } as any);
+      } else {
+        await createItem({
+          name,
+          quantity: qty,
+          unit,
+          category,
+          minQuantity: minQty,
+          expiryDate: exp,
+          purchasePrice: price,
+          notes,
+        });
+        router.replace("/(app)/dashboard");
+      }
     } catch (e) {
       console.error(e);
       alert("Gagal menyimpan barang.");
@@ -80,7 +124,7 @@ export default function AddItemScreen() {
         <TouchableOpacity style={styles.menuButton} onPress={handleMenuOpen}>
           <Icon name="menu" size={28} color={COLORS.textLight} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Tambah Barang</Text>
+        <Text style={styles.headerTitle}>{isEdit ? "Edit Barang" : "Tambah Barang"}</Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -149,8 +193,28 @@ export default function AddItemScreen() {
               style={styles.input}
             />
 
+            <Text style={styles.label}>Harga Beli per Satuan (opsional)</Text>
+            <TextInput
+              value={purchasePrice}
+              onChangeText={setPurchasePrice}
+              keyboardType="decimal-pad"
+              placeholder="Contoh: 14500"
+              placeholderTextColor={COLORS.grayText}
+              style={styles.input}
+            />
+
+            <Text style={styles.label}>Catatan (opsional)</Text>
+            <TextInput
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Contoh: supplier langganan / kualitas premium"
+              placeholderTextColor={COLORS.grayText}
+              style={[styles.input, styles.textArea]}
+              multiline
+            />
+
             <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isSaving} activeOpacity={0.9}>
-              <Text style={styles.saveText}>{isSaving ? "Menyimpan..." : "Simpan"}</Text>
+              <Text style={styles.saveText}>{isSaving ? "Menyimpan..." : isEdit ? "Simpan Perubahan" : "Simpan"}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -190,6 +254,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     color: "#111",
   },
+  textArea: { minHeight: 84, textAlignVertical: "top" },
   row: { flexDirection: "row" },
   saveBtn: {
     marginTop: 16,
@@ -200,4 +265,3 @@ const styles = StyleSheet.create({
   },
   saveText: { color: "#fff", fontWeight: "800" },
 });
-

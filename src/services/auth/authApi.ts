@@ -1,8 +1,24 @@
 import { clearSession, setSession, type AuthSession } from "@/src/services/auth/session";
-import { mockLogin, mockLogout, mockMe, mockRegister } from "@/src/services/auth/mockAuth";
+import {
+  mockEnsureDemoUser,
+  mockLogin,
+  mockLogout,
+  mockMe,
+  mockRegister,
+  mockSaveBusinessProfile,
+  mockSetPin,
+  mockVerifyPin,
+} from "@/src/services/auth/mockAuth";
 
 type LoginInput = { identifier: string; password: string };
-type RegisterInput = { identifier: string; password: string; name: string; role?: string };
+type RegisterInput = {
+  identifier: string;
+  password: string;
+  name: string;
+  role?: string;
+  businessName?: string;
+  phone?: string;
+};
 
 function baseUrlFromEnv() {
   const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -102,6 +118,8 @@ export async function register(input: RegisterInput) {
           username: input.identifier,
           name: input.name,
           role: input.role,
+          businessName: input.businessName,
+          phone: input.phone,
           password: input.password,
         }),
       });
@@ -124,7 +142,14 @@ export async function register(input: RegisterInput) {
     password: input.password,
     name: input.name,
     role: input.role,
+    businessName: input.businessName,
+    phone: input.phone,
   });
+}
+
+export async function loginDemo(): Promise<AuthSession> {
+  await mockEnsureDemoUser();
+  return await login({ identifier: "demo@warungstock.local", password: "demo123" });
 }
 
 export async function me(token: string) {
@@ -166,4 +191,23 @@ export async function logout(token?: string | null) {
   }
 
   await clearSession();
+}
+
+export async function saveBusinessProfile(input: {
+  userId: number | string;
+  businessName: string;
+  businessType: string;
+  location?: string;
+  defaultCurrency: string;
+  defaultUnit: string;
+}) {
+  return await mockSaveBusinessProfile(input);
+}
+
+export async function setLocalPin(userId: number | string, pin: string) {
+  return await mockSetPin(userId, pin);
+}
+
+export async function verifyLocalPin(userId: number | string, pin: string) {
+  return await mockVerifyPin(userId, pin);
 }

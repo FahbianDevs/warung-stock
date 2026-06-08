@@ -1,5 +1,6 @@
 import { logout } from "@/src/services/auth/authApi";
 import { getSession } from "@/src/services/auth/session";
+import { storage } from "@/src/services/storage";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
@@ -15,6 +16,7 @@ export default function LogoutScreen() {
       try {
         const session = await getSession();
         await logout(session?.token ?? null);
+        await storage.removeItem("pinUnlockedV1");
         if (!cancelled) router.replace("/(auth)/login");
       } catch (e) {
         if (!cancelled) {
@@ -51,4 +53,3 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
-

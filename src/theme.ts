@@ -1,15 +1,18 @@
 export const COLORS = {
-  bgLight: "#FCF5EE", // Latar belakang krem
-  background: "#FCF5EE", // Warna latar krem
-  primary: "#330814", // Marun gelap (Sidebar/Tombol)
-  textDark: "#853641", // Judul marun
-  textLight: "#FFFFFF", // Putih
+  bgLight: "#F8FAFC",
+  background: "#F8FAFC",
+  primary: "#22C55E",
+  secondary: "#1E3A8A",
+  textDark: "#111827",
+  textLight: "#FFFFFF",
   white: "#FFFFFF",
-  cardBg: "#FFFFFF", // Latar belakang kartu
-  inputBg: "#FCF5EE", // Latar input form
-  border: "#EAE0D5", // Garis tepi input
-  danger: "#C60000", // Warna tombol delete
-  textGray: "#999", // Warna teks abu-abu
-  textMuted: "#666", // Warna teks lebih gelap
-  grayText: "#777777", // Warna teks abu-abu untuk placeholder
+  cardBg: "#FFFFFF",
+  inputBg: "#F1F5F9",
+  border: "#E2E8F0",
+  warning: "#F59E0B",
+  danger: "#EF4444",
+  success: "#10B981",
+  textGray: "#9CA3AF",
+  textMuted: "#6B7280",
+  grayText: "#9CA3AF",
 };

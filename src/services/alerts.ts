@@ -6,7 +6,7 @@ const LAST_ALERT_DAY_KEY = "alerts.last_day_v1";
 const LAST_ALERT_DAY_KEY_LEGACY = "alerts:last_day_v1";
 
 function todayKey() {
-  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  return new Date().toISOString().slice(0, 10);
 }
 
 export async function maybeNotifyStockAlerts(items: InventoryItem[]) {
@@ -16,11 +16,11 @@ export async function maybeNotifyStockAlerts(items: InventoryItem[]) {
   const today = todayKey();
   if (last === today) return;
 
-  const low = items.filter((i) => i.quantity < i.minQuantity);
-  const expiring = items.filter((i) => {
-    if (!i.expiryDate) return false;
-    const d = daysUntil(i.expiryDate);
-    return d !== null && d >= 0 && d <= 3;
+  const low = items.filter((item) => item.quantity <= item.minQuantity);
+  const expiring = items.filter((item) => {
+    if (!item.expiryDate) return false;
+    const days = daysUntil(item.expiryDate);
+    return days !== null && days >= 0 && days <= 7;
   });
 
   if (low.length === 0 && expiring.length === 0) return;

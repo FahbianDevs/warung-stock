@@ -29,6 +29,12 @@ export default function AppLayout() {
         }}
       />
       <Drawer.Screen
+        name="statistics"
+        options={{
+          title: "Statistik",
+        }}
+      />
+      <Drawer.Screen
         name="settings"
         options={{
           title: "Pengaturan",

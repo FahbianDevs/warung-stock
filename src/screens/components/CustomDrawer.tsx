@@ -22,6 +22,7 @@ export default function CustomDrawer(props: CustomDrawerProps) {
     { name: "Dashboard", icon: "home-outline", route: "dashboard" },
     { name: "Tambah Barang", icon: "add-circle-outline", route: "add-item" },
     { name: "Riwayat", icon: "time-outline", route: "history" },
+    { name: "Statistik", icon: "analytics-outline", route: "statistics" },
     { name: "Pengaturan", icon: "settings-outline", route: "settings" },
   ];
 

@@ -12,6 +12,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.warungstock.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -22,6 +23,14 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
@@ -29,6 +38,7 @@
     "plugins": [
       "expo-router",
       "expo-notifications",
+      "./plugins/withJitpackRepo",
       [
         "expo-splash-screen",
         {
@@ -50,6 +60,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8148f6a1-7f43-45ea-8a77-df0a2bbf2b7d"
+      }
     }
   }
 }

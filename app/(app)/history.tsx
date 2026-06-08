@@ -3,24 +3,14 @@ import { COLORS } from "@/src/theme";
 import { DrawerNavigationProp } from "@react-navigation/drawer";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React from "react";
-import {
-  FlatList,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { FlatList, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 
 type DrawerNavigation = DrawerNavigationProp<any>;
 
 export default function HistoryScreen() {
   const navigation = useNavigation<DrawerNavigation>();
-  const [rows, setRows] = React.useState<
-    (Awaited<ReturnType<typeof listMovements>>)[number][]
-  >([]);
+  const [rows, setRows] = React.useState<(Awaited<ReturnType<typeof listMovements>>)[number][]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [type, setType] = React.useState<MovementType | "ALL">("ALL");
@@ -28,12 +18,11 @@ export default function HistoryScreen() {
   const load = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await listMovements({
+      setRows(await listMovements({
         search: search.trim() ? search : undefined,
         type: type === "ALL" ? undefined : type,
         limit: 300,
-      });
-      setRows(res);
+      }));
     } catch (e) {
       console.error(e);
       alert("Gagal memuat riwayat.");
@@ -80,15 +69,15 @@ export default function HistoryScreen() {
         </View>
 
         <View style={styles.typeRow}>
-          {(["ALL", "IN", "OUT"] as const).map((t) => (
+          {(["ALL", "IN", "OUT"] as const).map((movementType) => (
             <TouchableOpacity
-              key={t}
-              style={[styles.typeChip, type === t && styles.typeChipActive]}
-              onPress={() => setType(t)}
+              key={movementType}
+              style={[styles.typeChip, type === movementType && styles.typeChipActive]}
+              onPress={() => setType(movementType)}
               activeOpacity={0.85}
             >
-              <Text style={[styles.typeText, type === t && styles.typeTextActive]}>
-                {t === "ALL" ? "Semua" : t === "IN" ? "Masuk" : "Keluar"}
+              <Text style={[styles.typeText, type === movementType && styles.typeTextActive]}>
+                {movementType === "ALL" ? "Semua" : movementType === "IN" ? "Masuk" : "Keluar"}
               </Text>
             </TouchableOpacity>
           ))}
@@ -100,28 +89,28 @@ export default function HistoryScreen() {
 
       <FlatList
         data={rows}
-        keyExtractor={(it) => String(it.id)}
+        keyExtractor={(item) => String(item.id)}
         refreshing={isLoading}
         onRefresh={() => void load()}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
+            <Icon name="time-outline" size={42} color={COLORS.textGray} />
             <Text style={styles.emptyTitle}>Belum ada riwayat</Text>
             <Text style={styles.emptySubtitle}>Transaksi masuk/keluar akan tampil di sini.</Text>
           </View>
         }
         renderItem={({ item }) => {
           const isIn = item.type === "IN";
-          const color = isIn ? "#16A34A" : "#C60000";
+          const color = isIn ? COLORS.success : COLORS.danger;
           return (
             <View style={styles.rowCard}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle} numberOfLines={1}>
-                  {item.itemName}
-                </Text>
+                <Text style={styles.rowTitle} numberOfLines={1}>{item.itemName}</Text>
                 <Text style={styles.rowSub}>
-                  {new Date(item.createdAt).toLocaleString()} • {item.category || "—"}
+                  {new Date(item.createdAt).toLocaleString()} • {item.category || "-"}
                 </Text>
+                {item.note ? <Text style={styles.note}>{item.note}</Text> : null}
               </View>
               <View style={[styles.pill, { backgroundColor: color }]}>
                 <Text style={styles.pillText}>
@@ -161,7 +150,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  searchInput: { flex: 1, marginLeft: 8, marginRight: 8, fontSize: 14, color: "#111" },
+  searchInput: { flex: 1, marginLeft: 8, marginRight: 8, fontSize: 14, color: COLORS.textDark },
   typeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
   typeChip: {
     paddingVertical: 8,
@@ -171,8 +160,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  typeChipActive: { borderColor: COLORS.primary, backgroundColor: "#f7eef0" },
-  typeText: { fontSize: 12, fontWeight: "700", color: COLORS.textMuted },
+  typeChipActive: { borderColor: COLORS.primary, backgroundColor: "#ECFDF5" },
+  typeText: { fontSize: 12, fontWeight: "800", color: COLORS.textMuted },
   typeTextActive: { color: COLORS.primary },
   refreshBtn: {
     marginLeft: "auto",
@@ -191,18 +180,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     backgroundColor: COLORS.cardBg,
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
     marginBottom: 10,
   },
-  rowTitle: { fontSize: 15, fontWeight: "800", color: COLORS.textDark },
+  rowTitle: { fontSize: 15, fontWeight: "900", color: COLORS.textDark },
   rowSub: { marginTop: 4, fontSize: 12, color: COLORS.textMuted },
+  note: { marginTop: 5, fontSize: 12, color: COLORS.textDark },
   pill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  pillText: { color: "#fff", fontSize: 12, fontWeight: "800" },
+  pillText: { color: "#fff", fontSize: 12, fontWeight: "900" },
   emptyWrap: { paddingTop: 40, alignItems: "center" },
-  emptyTitle: { fontSize: 16, fontWeight: "800", color: COLORS.textDark },
+  emptyTitle: { marginTop: 10, fontSize: 16, fontWeight: "900", color: COLORS.textDark },
   emptySubtitle: { marginTop: 8, fontSize: 12, color: COLORS.textMuted, textAlign: "center", paddingHorizontal: 40 },
 });
-

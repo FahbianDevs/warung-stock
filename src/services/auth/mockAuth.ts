@@ -7,6 +7,9 @@ export type MockUser = {
   username: string | null;
   name: string;
   role: string;
+  businessName?: string;
+  phone?: string;
+  hasPin?: boolean;
 };
 
 export type MockSession = {
@@ -46,6 +49,9 @@ function toPublicUser(row: any): MockUser {
     username: row.username ?? null,
     name: row.name ?? "",
     role: row.role ?? "owner",
+    businessName: row.businessName ?? "",
+    phone: row.phone ?? "",
+    hasPin: !!row.pinHash,
   };
 }
 
@@ -54,6 +60,8 @@ export async function mockRegister(params: {
   password: string;
   name?: string;
   role?: string;
+  businessName?: string;
+  phone?: string;
 }): Promise<MockUser> {
   await initDb();
   const db = await getDb();
@@ -61,6 +69,8 @@ export async function mockRegister(params: {
   const identifier = normalizeIdentifier(params.identifier);
   const name = (params.name ?? "").trim();
   const role = (params.role ?? "owner").trim() || "owner";
+  const businessName = (params.businessName ?? "").trim();
+  const phone = (params.phone ?? "").trim();
 
   if (!identifier) throw new Error("Email/username wajib diisi.");
   if (!params.password) throw new Error("Password wajib diisi.");
@@ -75,13 +85,18 @@ export async function mockRegister(params: {
 
   try {
     const result = await db.runAsync(
-      `INSERT INTO auth_users (email, username, name, role, passwordSalt, passwordHash, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [email, username, name, role, salt, hash, createdAt],
+      `INSERT INTO auth_users (email, username, name, role, businessName, phone, passwordSalt, passwordHash, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [email, username, name, role, businessName, phone, salt, hash, createdAt, createdAt],
     );
 
     const id = result.lastInsertRowId as number;
-    return { id, email, username, name, role };
+    await db.runAsync(
+      `INSERT OR IGNORE INTO users (id, name, business_name, email, phone, password_hash, pin_code, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+      [id, name, businessName, email, phone, hash, createdAt, createdAt],
+    );
+    return { id, email, username, name, role, businessName, phone, hasPin: false };
   } catch (e: any) {
     const message = typeof e?.message === "string" ? e.message : "";
     if (message.toLowerCase().includes("unique")) {
@@ -89,6 +104,25 @@ export async function mockRegister(params: {
     }
     throw new Error("Gagal membuat akun. Silakan coba lagi.");
   }
+}
+
+export async function mockEnsureDemoUser() {
+  await initDb();
+  const db = await getDb();
+  const existing = await db.getFirstAsync<any>(
+    "SELECT * FROM auth_users WHERE email = ? LIMIT 1",
+    ["demo@warungstock.local"],
+  );
+  if (existing) return toPublicUser(existing);
+
+  return await mockRegister({
+    identifier: "demo@warungstock.local",
+    password: "demo123",
+    name: "Pemilik Demo",
+    businessName: "Warung Demo",
+    phone: "081234567890",
+    role: "owner",
+  });
 }
 
 export async function mockLogin(params: {
@@ -158,4 +192,62 @@ export async function mockLogout(token: string): Promise<void> {
   const db = await getDb();
   const tokenHash = sha256Hex(token);
   await db.runAsync(`DELETE FROM auth_sessions WHERE token = ?`, [tokenHash]);
+}
+
+export async function mockSaveBusinessProfile(params: {
+  userId: number | string;
+  businessName: string;
+  businessType: string;
+  location?: string;
+  defaultCurrency: string;
+  defaultUnit: string;
+}) {
+  await initDb();
+  const db = await getDb();
+  const now = nowIso();
+  const userId = Number(params.userId);
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      "UPDATE auth_users SET businessName = ?, updatedAt = ? WHERE id = ?",
+      [params.businessName.trim(), now, userId],
+    );
+    await db.runAsync(
+      `INSERT INTO business_profile (user_id, business_name, business_type, location, default_currency, default_unit, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        params.businessName.trim(),
+        params.businessType,
+        params.location?.trim() ?? "",
+        params.defaultCurrency,
+        params.defaultUnit,
+        now,
+        now,
+      ],
+    );
+  });
+}
+
+export async function mockSetPin(userId: number | string, pin: string) {
+  await initDb();
+  const db = await getDb();
+  const salt = randomHex(8);
+  const hash = sha256Hex(`${salt}:${pin}`);
+  const now = nowIso();
+  await db.runAsync(
+    "UPDATE auth_users SET pinSalt = ?, pinHash = ?, updatedAt = ? WHERE id = ?",
+    [salt, hash, now, Number(userId)],
+  );
+}
+
+export async function mockVerifyPin(userId: number | string, pin: string) {
+  await initDb();
+  const db = await getDb();
+  const row = await db.getFirstAsync<any>(
+    "SELECT pinSalt, pinHash FROM auth_users WHERE id = ? LIMIT 1",
+    [Number(userId)],
+  );
+  if (!row?.pinHash || !row?.pinSalt) return false;
+  return sha256Hex(`${row.pinSalt}:${pin}`) === row.pinHash;
 }
